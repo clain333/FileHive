@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="icon" href="static/favicon.ico" type="image/x-icon">
+    <title>Express Locker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #8ec5fc, #e0c3fc);
+            background-size: 100% 100%;
+        }
+
+        .app {
+            display: flex;
+            flex-direction: column; /* 改为上下排列 */
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 20px;
+            gap: 30px; /* 设置上下间距 */
+        }
+
+        .fileinfo, .config_setting {
+            width: 100%;
+            max-width: 900px; /* 最大宽度 */
+            background-color: snow;
+            border: 1px solid seashell;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1),
+            0 6px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            border-radius: 8px; /* 增加圆角 */
+        }
+
+        .fileinfo h1, .config_setting h1 {
+            margin-bottom: 20px;
+        }
+
+        .file {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            overflow-y: auto;
+            gap: 10px; /* 设置项之间的间距 */
+        }
+
+        .file-item, .file-item2 {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .file-item div {
+            text-align: center;
+            flex: 1;
+            padding: 5px;
+            overflow-x: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .button {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-top: 20px;
+            gap: 10%; /* 控制按钮间的间距 */
+        }
+
+        .button div {
+            padding: 12px 24px;
+            background: beige;
+            color: black;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 30%; /* 控制按钮宽度 */
+            text-align: center;
+        }
+
+        .button div:hover {
+            background: whitesmoke;
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .button div:active {
+            transform: scale(0.98);
+        }
+
+        .config-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+            width: 100%;
+        }
+
+        .config-label {
+            width: 220px;
+            font-size: 14px;
+            white-space: nowrap;
+            margin-right: 12px;
+        }
+
+        .config-input {
+            flex: 1;
+            padding: 6px 10px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .submit-button {
+            padding: 12px 24px;
+            background: beige;
+            color: black;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 45%;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .submit-button:hover {
+            background: whitesmoke;
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .submit-button:active {
+            transform: scale(0.98);
+        }
+
+        button {
+            background: beige;
+            cursor: pointer;
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: #f1f1f1;
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="fileinfo">
+        <h1>文件上传记录</h1>
+        <div class="file">
+            <div class="file-item2" id="file-item-1">
+                <div class="file-code">取件码</div>
+                <div class="file-psd">取件密码</div>
+                <div class="file-name">文件名字</div>
+                <div class="file-size">文件大小(mb)</div>
+                <div class="file-remaining">剩余下载次数</div>
+                <div class="file-toggle">可否下载</div>
+                <div class="file-down">查看</div>
+                <div class="file-delete">删除</div>
+            </div>
+            {{range .pickinfo}}
+            <div class="file-item" id="file-item-{{.PickupCode}}">
+                <div class="file-code">{{.PickupCode}}</div>
+                <div class="file-psd">{{.PickupPassword}}</div>
+                <div class="file-name">{{.Text}}</div>
+                <div class="file-size">{{.FileSize}}</div>
+                <div class="file-remaining">{{.RemainingDownloads}}</div>
+                <div class="file-toggle"><button id="1-{{.PickupCode}}">{{.IsD}}</button></div>
+                <div class="file-down"><button id="3-{{.PickupCode}}">查看</button></div>
+                <div class="file-delete"><button id="2-{{.PickupCode}}">删除</button></div>
+            </div>
+            {{end}}
+        </div>
+        <div class="button">
+            <div class="leftbutton" id="agree">全部允许下载</div>
+            <div class="middbutton" id="no">全部禁止下载</div>
+            <div class="rightbutton" id="delete">全部删除</div>
+        </div>
+    </div>
+
+    <div class="config_setting">
+        <h1>配置设置</h1>
+        <div class="config-item">
+            <label class="config-label" for="admin-password">管理员密码：</label>
+            <input class="config-input" type="text" name="admin-password" id="admin-password" value="{{.adminpassword}}">
+        </div>
+        <div class="config-item">
+            <label class="config-label" for="expire-time">每个文件有效时间(天)：</label>
+            <input class="config-input" type="number" name="expire-time" id="expire-time" value="{{.exptime}}">
+        </div>
+        <div class="config-item">
+            <label class="config-label" for="single-upload-limit">单次上传数量限制：</label>
+            <input class="config-input" type="number" name="single-upload-limit" id="single-upload-limit" value="{{.uploadlimbt}}">
+        </div>
+        <div class="config-item">
+            <label class="config-label" for="file-size-limit">上传文件的大小限制：(mb)</label>
+            <input class="config-input" type="number" name="file-size-limit" id="file-size-limit" value="{{.filesize}}">
+        </div>
+        <div class="config-item">
+            <label class="config-label" for="download-count-limit">文件的下载次数限制：</label>
+            <input class="config-input" type="number" name="download-count-limit" id="download-count-limit" value="{{.DownloadLimit}}">
+        </div>
+        <div class="config-item">
+            <label class="config-label" for="download-count-limit">取件码位数：</label>
+            <input class="config-input" type="number" name="file-code-num" id="file-code-num" value="{{.filecodenum}}">
+        </div>
+        <div class="config-item">
+            <label class="config-label" for="upload-restriction">是否允许上传：</label>
+            {{if .isupload}}
+            <input class="config-input" type="checkbox" name="upload-restriction" id="upload-restriction" checked>
+            {{else}}
+            <input class="config-input" type="checkbox" name="upload-restriction" id="upload-restriction">
+            {{end}}
+        </div>
+        <div class="config-item">
+            <label class="config-label" for="download-restriction">是否允许下载：</label>
+            {{if .isdownload}}
+            <input class="config-input" type="checkbox" name="download-restriction" id="download-restriction" checked>
+            {{else}}
+            <input class="config-input" type="checkbox" name="download-restriction" id="download-restriction">
+            {{end}}
+        </div>
+        <button class="submit-button" id="button">保存</button>
+        <button class="submit-button" id="buttons">清除所有文件，配置环境</button>
+    </div>
+</div>
+<script>
+    const adminPassword = document.getElementById("admin-password");
+    const expireTime = document.getElementById("expire-time");
+    const singleUploadLimit = document.getElementById("single-upload-limit");
+    const fileSizeLimit = document.getElementById("file-size-limit");
+    const downloadCountLimit = document.getElementById("download-count-limit");
+    const fileCodeNum = document.getElementById("file-code-num");
+    const uploadRestriction = document.getElementById("upload-restriction");
+    const downloadRestriction = document.getElementById("download-restriction");
+
+
+    const buttons = document.querySelectorAll(".file-item button")
+    buttons.forEach(data=>{
+        data.addEventListener("click",async (s)=>{
+            const type = data.id.split("-")[0]
+            const code = data.id.split("-")[1]
+            switch (type) {
+                case "1":
+                    await fetch('/admin/change', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            "code": code,
+                        })}).then(()=>{
+                        if (data.textContent === "允许"){
+                            data.textContent = "禁止"
+                        }else {
+                            data.textContent = "允许"
+                        }
+
+                    }).catch(()=>{alert("修改失败，请重试")})
+                    break;
+                case "2":
+                    await fetch('/admin/delete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            "code": code,
+                        })}).then(()=>{
+                        document.getElementById("file-item-"+code).remove()
+                    }).catch(()=>{alert("删除失败，请重试")})
+                    break;
+                case "3":
+                    const m = document.getElementById("file-item-"+code).querySelector(".file-psd");
+                    window.open(`/fileinfo?code=${code}&psd=${m.innerText}`, "_blank");
+                    break;
+
+            }
+        })
+    })
+    document.getElementById('delete').addEventListener("click",async ()=>{
+        await fetch('/admin/deleteall', {
+            method: 'POST'}).then(()=>{
+            document.querySelectorAll('.file-item').forEach(el => el.remove());
+        }).catch(()=>{alert("删除失败，请重试")})
+    })
+
+    document.getElementById('agree').addEventListener("click",async ()=>{
+        await fetch('/admin/changeall', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                "status": "true",
+            })
+        }).then(()=>{
+            document.querySelectorAll(".file-item .file-toggle").forEach(e=>{
+                e.innerHTML = '<div class="file-toggle"><button id="1-{{.PickupCode}}">允许</button></div>'
+            })
+
+        }).catch(()=>{alert("删除失败，请重试")})
+    })
+
+    document.getElementById('no').addEventListener("click",async ()=>{
+        await fetch('/admin/changeall', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                "status": "false",
+            })
+        }).then(()=>{
+            document.querySelectorAll(".file-item .file-toggle").forEach(e=>{
+                e.innerHTML = '<div class="file-toggle"><button id="1-{{.PickupCode}}">禁止</button></div>'
+            })
+
+        }).catch(()=>{alert("删除失败，请重试")})
+    })
+
+    document.getElementById('buttons').addEventListener("click",async ()=>{
+        await fetch('/admin/recover', {
+            method: 'POST',}).then(()=>{
+            alert("全部删除成功")
+            location.reload();
+
+        }).catch(()=>{alert("删除失败，请重试")
+        })});
+
+    document.getElementById('button').addEventListener("click",async ()=>{
+
+        await fetch('/admin/savesetting', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                    "adminPassword": adminPassword.value,
+                    "expireTime": expireTime.value,
+                    "singleUploadLimit": singleUploadLimit.value,
+                    "fileSizeLimit": fileSizeLimit.value,
+                    "downloadCountLimit": downloadCountLimit.value,
+                    "fileCodeNum": fileCodeNum.value,
+                    "uploadRestriction": uploadRestriction.checked,
+                    "downloadRestriction": downloadRestriction.checked
+                }
+            )}).then(()=>{
+
+            alert("保存成功")
+        }).catch(()=>{alert("保存失败，请重试")
+        })
+    })
+
+
+</script>
+</body>
+</html>
